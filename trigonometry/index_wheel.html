@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <style>
+        body {
+            background-color: black;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="myCanvas" width="500px" height="500px" style="background-color: white"></canvas>
+<br>
+<br>
+<canvas id="chartCanvas" width="700px" height="200px" style="background-color: white"></canvas>
+
+<script>
+    const canvas = document.getElementById('myCanvas')
+    const ctx = canvas.getContext('2d');
+    const chartCanvas = document.getElementById('chartCanvas')
+    const chartCtx = chartCanvas.getContext('2d');
+
+    const {width, height} = canvas;
+
+    // we want to be able to draw negative values on both axes
+    const offset = {
+        x: width/2,
+        y: height/2,
+    }
+
+    const chartOffset = {
+        x: chartCanvas.width/2,
+        y: chartCanvas.height/2,
+    }
+
+    ctx.translate(offset.x, offset.y);
+    chartCtx.translate(chartOffset.x, chartOffset.y);
+
+    drawCoordSystem(chartCtx, chartOffset);
+
+    let theta = Math.PI/4;
+
+    const c = 100;
+
+    const A = {x: 0, y: 0};
+    const B = {x: Math.cos(theta) * c, y: Math.sin(theta) * c}; // sin and cosin multiplied * c (?)
+    const C = {x: B.x, y: 0};
+
+    document.onwheel=(event) => {
+        console.log(Math.sign(event.deltaY));
+        theta -= toRad(Math.sign(event.deltaY));
+        B.x = Math.cos(theta)*c;
+        B.y = Math.sin(theta)*c;
+        update();
+    }
+
+
+    function update() {
+
+        // sine (sinus) is just the name given to the ratio between a and c (between 0 and 1)
+        //const sin = a/c;
+        const sin = Math.sin(theta);
+
+        // cos = cosine = cosinus: ratio of the site adjacent to theta / sine
+        // that means that cosine is "opposite" to sine; if sin = 1, cos = 0 and vice versa
+        //const cos = b/c;
+        const cos = Math.cos(theta)
+
+        // tan = tangent = tangente = sin / cos = ratio between sin and cos
+        // tan can go above 1 (as sin approaches 1 and cos appraoches 0, tan approaches infinity
+        //const tan = sin / cos; // or just a/b as in the formula  a/c / b/c, c cancels out
+        const tan = Math.tan(theta);
+
+        const T={
+            x: Math.sign(cos)*Math.hypot(1, tan)*c,
+            y: 0
+        }
+
+        // the sin can be used to finde the actual angle (in radians) using inverse sin (= arc sine)
+        //const theta = Math.asin(sin); //(is now defined as a global variable)
+        // same as theta = Math.acos(cos) or theta = Math.atan(tan);
+
+        // As long as theta stays the same, sin, cos and tan stay the same
+        // meaning the size of the triangle doesn't matter for them
+
+
+        ctx.clearRect(-offset.x, -offset.y, width, height);
+
+
+        drawCoordSystem(ctx, offset);
+
+        drawText("sin = a = " + sin.toFixed(2), {x: -offset.x/2, y:offset.y*0.7}, "red")
+        drawText("cos = b = " + cos.toFixed(2), {x: -offset.x/2, y:offset.y*0.8}, "blue")
+        drawText("tan = a/b = " + tan.toFixed(2), {x: -offset.x/2, y:offset.y*0.9}, "magenta")
+        drawText("θ = " + theta.toFixed(2) + "(" + Math.round(toDeg(theta)).toString().padStart(2, " ") + "°)", {x: offset.x/2, y:offset.y*0.7})
+        drawLine(A, B);
+        // unit circle with a radius of 1 (c=1)
+        drawText("1", average(A,B));
+        drawLine(A, C, "blue");
+        drawText("cos", average(A,C), "blue");
+        drawLine(B, C, "red");
+        drawText("sin", average(B,C), "red");
+
+        // visualize tangent triangle
+        drawLine(B, T, "magenta");
+        drawText('tan', average(B,T), "magenta")
+
+        // lower case theta, the angle at point 0,0
+        drawText('θ', A)
+
+        ctx.beginPath()
+        ctx.strokeStyle = "black";
+        ctx.lineWidth=2;
+
+        ctx.arc(0, 0, c, 0, theta, theta<0);
+
+        const chartScaler = chartOffset.y*0.5;
+        drawPoint(chartCtx, {x: theta*chartScaler, y: sin*chartScaler}, 2);
+        drawPoint(chartCtx, {x: theta*chartScaler, y: cos*chartScaler}, 2, 'blue');
+        drawPoint(chartCtx, {x: theta*chartScaler, y: tan*chartScaler}, 2, 'magenta');
+    }
+    update();
+
+
+    function toDeg(rads) {
+        // 1/2 * PI = 1.57 radians = 90°, PI radians = 180° etc
+        const ratio = 180 / Math.PI;
+        return rads*ratio;
+    }
+
+    function toRad(deg) {
+        const ratio = Math.PI / 180;
+        return deg * ratio;
+    }
+    function average(p1, p2) {
+        return {
+            x: (p1.x+p2.x)/2,
+            y: (p1.y+p2.y)/2
+        }
+    }
+
+    function drawLine(p1, p2, color="black") {
+        ctx.beginPath();
+        ctx.lineWidth=2
+        ctx.strokeStyle=color;
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+    }
+
+    function drawText(text, loc, color="black") {
+        ctx.beginPath();
+        ctx.fillStyle=color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 18px Courier";
+        ctx.strokeStyle="white";
+        ctx.lineWidth=7
+        // order is important...
+        ctx.strokeText(text, loc.x, loc.y);
+        ctx.fillText(text, loc.x, loc.y);
+    }
+
+    function drawPoint(ctx, point, size=6, color="red") {
+        ctx.beginPath()
+        ctx.fillStyle = color;
+        ctx.arc(point.x,point.y,size/2,0,2*Math.PI)
+        ctx.fill();
+    }
+
+    function drawCoordSystem(ctx, offset) {
+        const originalLineDash = ctx.getLineDash();
+        ctx.setLineDash([5,4]);
+        ctx.lineWidth=2;
+        ctx.strokeStyle = "silver";
+        ctx.moveTo(0, -offset.y);
+        ctx.lineTo(0, offset.y);
+        ctx.stroke();
+        ctx.moveTo(-offset.x, 0);
+        ctx.lineTo(offset.x, 0);
+        ctx.stroke();
+        ctx.setLineDash(originalLineDash);
+    }
+</script>
+
+</body>
+</html>
+
+

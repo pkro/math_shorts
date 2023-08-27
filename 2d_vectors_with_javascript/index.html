@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="myCanvas" width="500px" height="500px" style="background-color: darkred">
+
+
+</canvas>
+
+<script>
+    const canvas = document.getElementById('myCanvas')
+    const ctx = canvas.getContext('2d');
+    const {width, height} = canvas;
+
+    // we want to be able to draw negative values on both axises
+    const offset = {
+        x: width / 2,
+        y: height / 2,
+    }
+    ctx.translate(offset.x, offset.y);
+
+    const point = {x: 90, y: 120};
+    // some vector representing a "force" on a vector, e.g. gravity (y) + wind (x)
+    const G = {x: 20, y: 50};
+
+    update();
+
+    document.addEventListener('pointermove', (info) => {
+        const {offsetX, offsetY} = info;
+        point.x = offsetX - offset.x;
+        point.y = offsetY - offset.y;
+
+        update();
+
+    });
+
+    function update() {
+        ctx.clearRect(-offset.x, -offset.y, width, height);
+        drawCoordSystem();
+        //drawPoint(point);
+        drawArrowFromZero(point);
+        drawArrowFromZero(G);
+
+        const resultAdd = add(point, G);
+        drawArrowFromZero(resultAdd, "red");
+        ctx.beginPath();
+        ctx.setLineDash([3, 3]);
+        ctx.moveTo(G.x, G.y);
+        ctx.lineTo(resultAdd.x, resultAdd.y);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+
+        const resultSub = subtract(point, G);
+        drawArrowFromZero(resultSub, "red");
+        drawArrow(G, point, "red")
+
+        const scaledSub = scale(normalize(resultSub), 50);
+        drawArrowFromZero(scaledSub, "red");
+
+        console.log(dot(normalize(G), normalize(point)));
+
+    }
+
+    function toXY({dir, mag}) {
+        return {
+            x: mag * Math.cos(dir), // Math.cos(dir) is between -1 and 1 and we scale it by multiplying it by the magnitude
+            y: mag * Math.sin(dir),
+        }
+    }
+
+    function drawArrowFromZero(tip, color = "white", size = 20) {
+        drawArrow({x: 0, y: 0}, tip, color, size);
+    }
+
+    // if the dot product of 2 vectors is 0, they are orthogonal (at a right angle) to each other
+    // if the vectors is normalized / a unit vector, (length between 0 and 1) and dot = +-1, the vectors are overlapping
+    // the actual angle between the vectors can be calculated by (chatGPT?)
+    function dot(p1, p2) {
+        return p1.x * p2.x + p1.y * p2.y;
+    }
+
+    function normalize(p) {
+        return scale(p, 1 / magnitude(p));
+    }
+
+    function scale(p, scalar) {
+        return {
+            x: p.x * scalar,
+            y: p.y * scalar,
+        }
+    }
+
+    function add(p1, p2) {
+        return {
+            x: p1.x + p2.x,
+            y: p1.y + p2.y,
+        }
+    }
+
+    function subtract(p1, p2) {
+        return {
+            x: p1.x - p2.x,
+            y: p1.y - p2.y,
+        }
+    }
+
+    function drawArrow(tail, tip, color = "white", size = 20) {
+        // draw the tip
+        const {mag, dir} = toPolar(subtract(tip, tail));
+        const v1 = {dir: dir + Math.PI * 0.8, mag: size / 2};
+        const p1 = toXY(v1);
+        //translate point
+        const t1 = add(p1, tip);
+
+        const v2 = {dir: dir - Math.PI * 0.8, mag: size / 2};
+        const p2 = toXY(v2);
+        //translate point
+        const t2 = add(p2, tip);
+
+        ctx.beginPath()
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(t1.x, t1.y);
+        ctx.lineTo(t2.x, t2.y);
+        ctx.closePath(); // same as ctx.lineTo(to.x, to.y);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.fill();
+
+        // draw the arrow line
+        ctx.beginPath();
+        ctx.moveTo(tail.x, tail.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.stroke();
+    }
+
+    function toPolar({x, y}) {
+        return {
+            dir: direction({x, y}),
+            mag: magnitude({x, y})
+        }
+    }
+
+    function direction({x, y}) {
+        // gives angle from -PI/2 to +PI/2, but we need -PI to +PI to cover the whole 360°
+        // return Math.atan(y/x);
+
+        // The Math.atan2() static method returns the angle in the plane (in radians) between the positive x-axis and the ray from (0, 0) to the point (x, y), for Math.atan2(y, x).
+        return Math.atan2(y, x) // note the comma instead of /
+    }
+
+    function magnitude({x, y}) {
+        // just apply pythagoras theorem to calculate length of
+        // line between point and 0,0
+        //return Math.sqrt(x**2 + y**2);
+        return Math.hypot(x, y);
+    }
+
+
+    function drawPoint({x, y}, size = 10, color = "white") {
+        ctx.beginPath()
+        ctx.fillStyle = color;
+        ctx.arc(x, y, size / 2, 0, 2 * Math.PI)
+        ctx.fill();
+    }
+
+    function drawCoordSystem() {
+        ctx.setLineDash([5, 4]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "red";
+        ctx.moveTo(0, -(height / 2));
+        ctx.lineTo(0, height / 2);
+        ctx.stroke();
+        ctx.moveTo(-(width / 2), 0);
+        ctx.lineTo((width / 2), 0);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+
+    drawCoordSystem();
+    drawPoint(point.x, point.y);
+
+
+</script>
+
+</body>
+</html>
+
+
