@@ -84,8 +84,9 @@
  * This function is commonly used in computer graphics, animations, and data approximations.
  * 
  * @returns The interpolated value between A and B based on parameter t.
+  * Example: lerp(-4, 6, 0.5) = 2 (get the value that is at 50% (0.5) of a range between -4 and 6
  */
-function lerp(A: number, B: number, t: number): number {
+function lerp(A, B, t) {
     return A + (B - A) * t;
 }
 
